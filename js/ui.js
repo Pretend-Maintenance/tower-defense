@@ -23,7 +23,7 @@
   UI.init = function (game) {
     UI.game = game;
     ['stage', 'game-canvas', 'hud-top', 'hp-fill', 'shield-fill', 'hp-text', 'gold-text', 'wave-text', 'score-text',
-     'speed-btn', 'pause-btn', 'base-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
+     'speed-btn', 'pause-btn', 'base-btn', 'zoom-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
      'screen-menu', 'screen-maps', 'screen-skills', 'screen-settings', 'map-list', 'maps-title',
      'skill-tabs', 'skill-tree', 'skill-detail', 'settings-body', 'overlay-pause', 'overlay-result',
      'result-title', 'result-stats', 'pause-stats', 'menu-stats', 'rotate-hint', 'gold-chip']
@@ -52,59 +52,156 @@
   /* ================================================================
      layout — fit the 1600x896 field between the HUD and the build bar
      ================================================================ */
-  UI.layout = function () {
+  /**
+   * Work out one candidate layout. The turret bar sits under the field in the
+   * standard layout and beside it in the compact one; which is better depends
+   * entirely on the screen's shape, so both get measured.
+   */
+  function measureLayout(compact) {
     const w = window.innerWidth, h = window.innerHeight;
-    const sidePad = 10;
+    document.body.classList.toggle('compact', compact);
+    const rail = compact ? 54 : (w < 720 ? 68 : 88);
+    const brail = compact ? Math.min(76, Math.max(54, Math.round(w * 0.075))) : 0;
+    const root = document.documentElement.style;
+    root.setProperty('--rail', (rail - 8) + 'px');
+    root.setProperty('--brail', brail + 'px');
+
     // Measure the chrome rather than assuming its height — it changes with
     // font size, safe-area insets and the small-screen media queries.
     const hud = el['hud-top'].getBoundingClientRect();
-    const bar = el['build-bar'].getBoundingClientRect();
-    const topPad = (hud.height ? hud.bottom : 60) + 6;
-    const botPad = (bar.height ? h - bar.top : 100) + 6;
-    // The ability rail lives to the right of the field, never on top of it.
-    const rail = w < 720 ? 68 : 88;
-    document.documentElement.style.setProperty('--rail', rail - 10 + 'px');
-    const availW = Math.max(200, w - sidePad * 2 - rail);
-    const availH = Math.max(200, h - topPad - botPad);
-    const scale = Math.min(availW / G.w, availH / G.h);
-    const cw = G.w * scale, ch = G.h * scale;
+    const topPad = (hud.height ? hud.bottom : 56) + (compact ? 4 : 6);
+    let leftPad, rightPad, botPad;
+    if (compact) {
+      leftPad = brail + 12; rightPad = rail + 12; botPad = 8;
+    } else {
+      const bar = el['build-bar'].getBoundingClientRect();
+      leftPad = 10; rightPad = rail + 10;
+      botPad = (bar.height ? h - bar.top : 100) + 6;
+    }
+    const availW = Math.max(160, w - leftPad - rightPad);
+    const availH = Math.max(120, h - topPad - botPad);
+    return {
+      compact: compact, rail: rail, brail: brail, topPad: topPad,
+      leftPad: leftPad, availW: availW, availH: availH,
+      scale: Math.min(availW / G.w, availH / G.h)
+    };
+  }
+
+  UI.layout = function () {
+    const std = measureLayout(false);
+    const cmp = measureLayout(true);
+    // Only switch to the side rail when it genuinely wins, so tablets that can
+    // carry the wide bar keep it.
+    const L = cmp.scale > std.scale * 1.04 ? cmp : std;
+    if (L !== cmp) measureLayout(false);
+
+    const root = document.documentElement.style;
+    root.setProperty('--field-top', L.topPad + 'px');
+
+    const cw = G.w * L.scale, ch = G.h * L.scale;
     const cv = el['game-canvas'];
     cv.style.width = cw + 'px';
     cv.style.height = ch + 'px';
-    cv.style.left = (sidePad + availW / 2) + 'px';
-    cv.style.top = (topPad + availH / 2) + 'px';
-    UI.scale = scale;
+    cv.style.left = (L.leftPad + L.availW / 2) + 'px';
+    cv.style.top = (L.topPad + L.availH / 2) + 'px';
+    UI.scale = L.scale;
+    UI.compact = L.compact;
     TD.Render.resize(cw);
-    el['rotate-hint'].classList.toggle('hidden', !(h > w && w < 700));
+    clampView();
+    const w = window.innerWidth, h = window.innerHeight;
+    el['rotate-hint'].classList.toggle('hidden', !(h > w && w < 760));
   };
+
+  /* ================================================================
+     view: pinch to zoom, drag to pan (zoom 1 = whole field on screen)
+     ================================================================ */
+  UI.view = { zoom: 1, x: 0, y: 0 };
+
+  function clampView() {
+    const v = UI.view;
+    v.zoom = U.clamp(v.zoom, 1, 3);
+    v.x = U.clamp(v.x, 0, G.w - G.w / v.zoom);
+    v.y = U.clamp(v.y, 0, G.h - G.h / v.zoom);
+  }
+
+  UI.resetView = function () { UI.view.zoom = 1; UI.view.x = 0; UI.view.y = 0; };
+
+  /** Zoom about a point given in field coordinates. */
+  function zoomTo(zoom, fx, fy) {
+    const v = UI.view;
+    const before = { x: fx, y: fy };
+    v.zoom = U.clamp(zoom, 1, 3);
+    v.x = before.x - (G.w / v.zoom) / 2;
+    v.y = before.y - (G.h / v.zoom) / 2;
+    clampView();
+  }
 
   /* ================================================================
      canvas input
      ================================================================ */
-  function canvasPoint(ev) {
+  function canvasPoint(ev) { return clientToField(ev.clientX, ev.clientY); }
+
+  function clientToField(cx, cy) {
     const rect = el['game-canvas'].getBoundingClientRect();
+    const v = UI.view;
     return {
-      x: (ev.clientX - rect.left) / rect.width * G.w,
-      y: (ev.clientY - rect.top) / rect.height * G.h
+      x: v.x + (cx - rect.left) / rect.width * (G.w / v.zoom),
+      y: v.y + (cy - rect.top) / rect.height * (G.h / v.zoom)
     };
   }
 
   function bindCanvas() {
     const cv = el['game-canvas'];
-    let down = null, moved = false;
+    const pointers = new Map();
+    let down = null, moved = false, pinch = null, panned = false, tapBlockUntil = 0;
+
+    function midpoint() {
+      let sx = 0, sy = 0, n = 0;
+      pointers.forEach(function (p) { sx += p.x; sy += p.y; n++; });
+      return { x: sx / n, y: sy / n, n: n };
+    }
+    function spread() {
+      const p = Array.from(pointers.values());
+      return U.dist(p[0].x, p[0].y, p[1].x, p[1].y);
+    }
 
     cv.addEventListener('pointerdown', function (ev) {
       ev.preventDefault();
       TD.Audio.unlock();
+      pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* pointer already gone */ }
+
+      if (pointers.size === 2) {
+        // Second finger down: start a pinch and cancel the pending tap.
+        const m = midpoint();
+        pinch = { d0: spread(), zoom0: UI.view.zoom, field: clientToField(m.x, m.y) };
+        down = null;
+        return;
+      }
+      if (pointers.size > 2) return;
+
       const p = canvasPoint(ev);
-      down = { p: p, t: performance.now() };
-      moved = false;
+      down = { p: p, cx: ev.clientX, cy: ev.clientY, vx: UI.view.x, vy: UI.view.y };
+      moved = false; panned = false;
       UI.pointer = p;
       if (UI.buildId) UI.hoverCell = { c: G.colAt(p.x), r: G.rowAt(p.y) };
-      cv.setPointerCapture && cv.setPointerCapture(ev.pointerId);
     });
 
     cv.addEventListener('pointermove', function (ev) {
+      if (pointers.has(ev.pointerId)) pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+      if (pinch && pointers.size >= 2) {
+        const rect = cv.getBoundingClientRect();
+        const m = midpoint();
+        const v = UI.view;
+        v.zoom = U.clamp(pinch.zoom0 * (spread() / Math.max(1, pinch.d0)), 1, 3);
+        // keep the field point that was between the fingers under the fingers
+        v.x = pinch.field.x - (m.x - rect.left) / rect.width * (G.w / v.zoom);
+        v.y = pinch.field.y - (m.y - rect.top) / rect.height * (G.h / v.zoom);
+        clampView();
+        return;
+      }
+
       if (!down) {
         if (ev.pointerType === 'mouse') {
           const p = canvasPoint(ev);
@@ -113,14 +210,40 @@
         }
         return;
       }
+
+      if (Math.abs(ev.clientX - down.cx) > 10 || Math.abs(ev.clientY - down.cy) > 10) moved = true;
+
+      // One finger drags the map around, but only once zoomed in and only when
+      // not placing a turret (there, dragging positions the ghost).
+      if (moved && UI.view.zoom > 1 && !UI.buildId && !UI.game.armedAbility) {
+        const rect = cv.getBoundingClientRect();
+        const v = UI.view;
+        v.x = down.vx - (ev.clientX - down.cx) / rect.width * (G.w / v.zoom);
+        v.y = down.vy - (ev.clientY - down.cy) / rect.height * (G.h / v.zoom);
+        clampView();
+        panned = true;
+        return;
+      }
+
       const p = canvasPoint(ev);
       UI.pointer = p;
-      if (U.dist(p.x, p.y, down.p.x, down.p.y) > 12) moved = true;
       if (UI.buildId) UI.hoverCell = { c: G.colAt(p.x), r: G.rowAt(p.y) };
     });
 
+    function endPointer(ev) {
+      pointers.delete(ev.pointerId);
+      if (pinch && pointers.size < 2) {
+        pinch = null;
+        down = null;
+        tapBlockUntil = performance.now() + 250;   // don't tap on the lifting finger
+      }
+    }
+
     function release(ev) {
-      if (!down) return;
+      const wasDown = down;
+      endPointer(ev);
+      if (!wasDown || pinch) return;
+      if (panned || performance.now() < tapBlockUntil) { down = null; return; }
       const p = canvasPoint(ev);
       UI.lastFieldTap = { t: performance.now(), x: ev.clientX, y: ev.clientY };
       handleTap(p);
@@ -128,7 +251,7 @@
       if (!UI.buildId) UI.hoverCell = null;
     }
     cv.addEventListener('pointerup', release);
-    cv.addEventListener('pointercancel', function () { down = null; });
+    cv.addEventListener('pointercancel', function (ev) { endPointer(ev); down = null; });
     // A touch also fires a synthetic click ~50ms later. Panels opened by the tap
     // appear under the finger and would swallow it, so kill it at the source.
     cv.addEventListener('touchend', function (ev) { if (ev.cancelable) ev.preventDefault(); }, { passive: false });
@@ -225,6 +348,7 @@
       const unlocked = S.towerUnlocked(id);
       const cost = game.buildCost(id);
       b.querySelector('.cv').textContent = cost;
+      b.style.order = unlocked ? '0' : '1';
       b.classList.toggle('sel', UI.buildId === id);
       b.classList.toggle('locked', !unlocked);
       b.classList.toggle('poor', unlocked && game.gold < cost);
@@ -269,17 +393,18 @@
 
     // wave button
     const wb = el['wave-btn'];
+    const tight = UI.compact;
     if (game.waveActive) {
       wb.classList.add('busy');
       const left = game.enemies.length + game.pendingSpawns;
-      wb.querySelector('.wb-title').textContent = 'Wave ' + game.wave;
-      wb.querySelector('.wb-sub').textContent = left + ' hostiles';
+      wb.querySelector('.wb-title').textContent = (tight ? 'W' : 'Wave ') + game.wave;
+      wb.querySelector('.wb-sub').textContent = tight ? left + ' left' : left + ' hostiles';
     } else {
       wb.classList.remove('busy');
-      wb.querySelector('.wb-title').textContent = 'Send Wave ' + (game.wave + 1);
+      wb.querySelector('.wb-title').textContent = tight ? '▶ ' + (game.wave + 1) : 'Send Wave ' + (game.wave + 1);
       const bonus = Math.ceil(game.prepTimer * (2 + game.wave * 0.2));
       wb.querySelector('.wb-sub').textContent = game.prepTimer > 0
-        ? '+' + bonus + ' gold  ·  ' + Math.ceil(game.prepTimer) + 's'
+        ? (tight ? '+' + bonus + 'g' : '+' + bonus + ' gold  ·  ' + Math.ceil(game.prepTimer) + 's')
         : 'ready';
     }
     UI.refreshAbilities();
@@ -365,6 +490,9 @@
   }
   function fmtStat(v) { return typeof v === 'number' ? (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10) : v; }
 
+  const TARGET_MODES = ['first', 'last', 'strong', 'close'];
+  const TARGET_NAMES = { first: 'First', last: 'Last', strong: 'Strongest', close: 'Closest' };
+
   function towerPanelHTML(t, game) {
     const d = t.def;
     const s = t.s;
@@ -391,13 +519,16 @@
       html += statRow('Fire rate', s.rate, nextRaw ? nextRaw.rate * game.bonuses.rateMul * (1 + t.buff.rate) : null);
       html += statRow('Range', s.range, nextRaw ? nextRaw.range * game.bonuses.rangeMul * (1 + t.buff.range) : null);
       html += statRow('DPS (approx)', dps, null);
-      if (s.splash) html += statRow('Blast radius', s.splash, nextRaw ? nextRaw.splash : null);
-      if (s.slow) html += statRow('Slow', Math.round(s.slow * 100) + '%', null);
-      if (s.burn) html += statRow('Burn', s.burn + '/s', null);
-      if (s.chains) html += statRow('Chain jumps', s.chains, null);
-      if (s.missiles) html += statRow('Missiles', Math.round(s.missiles), null);
-      if (s.crit) html += statRow('Crit chance', Math.round(s.crit * 100) + '%', null);
-      html += statRow('Kills', t.kills, null);
+      // Short screens only have room for the headline numbers.
+      if (!UI.compact) {
+        if (s.splash) html += statRow('Blast radius', s.splash, nextRaw ? nextRaw.splash : null);
+        if (s.slow) html += statRow('Slow', Math.round(s.slow * 100) + '%', null);
+        if (s.burn) html += statRow('Burn', s.burn + '/s', null);
+        if (s.chains) html += statRow('Chain jumps', s.chains, null);
+        if (s.missiles) html += statRow('Missiles', Math.round(s.missiles), null);
+        if (s.crit) html += statRow('Crit chance', Math.round(s.crit * 100) + '%', null);
+        html += statRow('Kills', t.kills, null);
+      }
     }
 
     if (needsBranch) {
@@ -414,13 +545,18 @@
       html += '<div class="ins-desc">Fully upgraded.</div>';
     }
 
-    if (t.branch) html += '<div class="ins-desc">' + d.branches[t.branch].ico + ' ' + d.branches[t.branch].desc + '</div>';
+    // The level line already names the branch, so the blurb is dropped when short.
+    if (t.branch && !UI.compact) html += '<div class="ins-desc">' + d.branches[t.branch].ico + ' ' + d.branches[t.branch].desc + '</div>';
 
     if (d.targets !== 'none') {
-      html += '<div class="sect-title">Targeting</div><div class="chip-row">' +
-        [['first', 'First'], ['last', 'Last'], ['strong', 'Strongest'], ['close', 'Closest']].map(function (m) {
-          return '<button class="chip' + (t.targetMode === m[0] ? ' on' : '') + '" data-act="target" data-mode="' + m[0] + '">' + m[1] + '</button>';
-        }).join('') + '</div>';
+      if (UI.compact) {
+        html += '<button class="act-btn" data-act="cycle">🎯 Target: ' + TARGET_NAMES[t.targetMode] + ' ▸</button>';
+      } else {
+        html += '<div class="sect-title">Targeting</div><div class="chip-row">' +
+          TARGET_MODES.map(function (m) {
+            return '<button class="chip' + (t.targetMode === m ? ' on' : '') + '" data-act="target" data-mode="' + m + '">' + TARGET_NAMES[m] + '</button>';
+          }).join('') + '</div>';
+      }
     }
 
     html += '<button class="act-btn sell" data-act="sell">♻ Sell <span class="cost">◈ ' + t.sellValue(game) + '</span></button>';
@@ -440,6 +576,17 @@
       const lvl = game.baseLevels[key];
       const cost = game.baseUpgradeCost(key);
       const cur = lvl > 0 ? d.fmt(d.values[lvl - 1]) : '—';
+      if (UI.compact) {
+        // One row per system instead of a heading plus a button.
+        if (cost === null) {
+          html += '<div class="stat-row"><span>' + d.ico + ' ' + d.name + '</span><span>MAX</span></div>';
+        } else {
+          const can = game.gold >= cost;
+          html += '<button class="act-btn buy' + (can ? '' : ' disabled') + '" data-act="base" data-key="' + key + '">' +
+            d.ico + ' ' + d.fmt(d.values[lvl]) + ' <span class="cost">◈ ' + cost + '</span></button>';
+        }
+        return;
+      }
       html += '<div class="sect-title">' + d.ico + ' ' + d.name + '  ·  ' + cur + '</div>';
       if (cost === null) {
         html += '<div class="ins-desc">Maxed out.</div>';
@@ -468,6 +615,11 @@
       if (act === 'upgrade') { game.upgrade(UI.inspect.tower); UI.refreshInspector(true); return; }
       if (act === 'branch') { game.chooseBranch(UI.inspect.tower, btn.dataset.branch); UI.refreshInspector(true); return; }
       if (act === 'target') { UI.inspect.tower.targetMode = btn.dataset.mode; TD.Audio.play('ui'); UI.refreshInspector(true); return; }
+      if (act === 'cycle') {
+        const t = UI.inspect.tower;
+        t.targetMode = TARGET_MODES[(TARGET_MODES.indexOf(t.targetMode) + 1) % TARGET_MODES.length];
+        TD.Audio.play('ui'); UI.refreshInspector(true); return;
+      }
       if (act === 'sell') { game.sell(UI.inspect.tower); UI.inspect = null; UI.refreshInspector(true); return; }
       if (act === 'base') { game.buyBaseUpgrade(btn.dataset.key); UI.refreshInspector(true); return; }
     });
@@ -493,6 +645,14 @@
     });
 
     el['pause-btn'].addEventListener('click', function () { UI.pause(); });
+
+    el['zoom-btn'].addEventListener('click', function () {
+      const v = UI.view;
+      if (v.zoom > 1.05) UI.resetView();
+      else zoomTo(2, v.x + G.w / 2, v.y + G.h / 2);
+      el['zoom-btn'].textContent = UI.view.zoom > 1.05 ? '⤡' : '⤢';
+      TD.Audio.play('ui');
+    });
 
     // The core sits at the edge of the field and a panel can end up over it,
     // so base upgrades also get a permanent button.
@@ -657,6 +817,8 @@
     UI.buildId = null;
     UI.inspect = null;
     UI.hoverCell = null;
+    UI.resetView();
+    el['zoom-btn'].textContent = '⤢';
     UI.lastHud = {};
     UI.buildAbilityBar();
     UI.refreshInspector(true);

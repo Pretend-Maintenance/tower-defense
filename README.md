@@ -22,6 +22,13 @@ python3 -m http.server 8000
 Progress (research points, unlocks, best endless waves, settings) is saved to
 `localStorage` on the device.
 
+**Screen sizes.** Landscape, any size. On roomy tablets the turret bar runs
+along the bottom; on shorter screens (small Android tablets, phones) it moves
+to a vertical rail beside the field, which buys back the vertical space that
+matters most there. The game measures both layouts and keeps whichever gives
+the bigger field, so there is nothing to configure. Pinch to zoom in when the
+tiles are small for your fingers.
+
 ## The game
 
 **Goal.** Enemies walk the road toward your core. Stop them. Anything that
@@ -44,6 +51,7 @@ deeper into the run you are.
 | Abilities | Tap the icon on the right rail. Airstrike then asks you to tap a target. |
 | Send a wave early | Tap the wave button — the unused prep time is paid out in gold. |
 | Speed / pause | Buttons in the top bar (3× unlocks in the skill tree). |
+| Zoom | Pinch to zoom, drag to pan once zoomed, or the ⤢ button to toggle 2×. |
 
 ## Depth
 

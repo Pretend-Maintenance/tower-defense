@@ -130,7 +130,10 @@
     const ctx = R.ctx;
     R.t += 1 / 60;
 
-    ctx.setTransform(R.q, 0, 0, R.q, 0, 0);
+    // Backing-store density (q) combined with the player's pinch zoom.
+    const view = (ui && ui.view) || { zoom: 1, x: 0, y: 0 };
+    const k = R.q * view.zoom;
+    ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
     if (!game.map) { ctx.clearRect(0, 0, G.w, G.h); return; }
     if (R.bgMapId !== game.map.id) { R.bg = buildBackground(game.map); R.bgMapId = game.map.id; }
 
