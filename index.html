@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#070b14">
+<title>Iron Bastion — Tower Defense</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛡️</text></svg>">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= PLAY FIELD ================= -->
+  <div id="stage">
+    <canvas id="game-canvas" width="1600" height="896"></canvas>
+
+    <!-- Top HUD -->
+    <div id="hud-top" class="hud">
+      <div class="hud-group core-group">
+        <div class="core-icon">🛡</div>
+        <div class="core-meter">
+          <div class="bar"><div id="hp-fill" class="bar-fill"></div><div id="shield-fill" class="bar-shield"></div></div>
+          <div id="hp-text" class="meter-text">100 / 100</div>
+        </div>
+      </div>
+      <div class="hud-group stat" id="gold-chip"><span class="ico">◈</span><span id="gold-text">0</span></div>
+      <div class="hud-group stat"><span class="ico">☠</span><span id="wave-text">0</span></div>
+      <div class="hud-group stat"><span class="ico">★</span><span id="score-text">0</span></div>
+      <div class="spacer"></div>
+      <button id="speed-btn" class="hud-btn" aria-label="Game speed">1×</button>
+      <button id="pause-btn" class="hud-btn" aria-label="Pause">❚❚</button>
+    </div>
+
+    <!-- Right side: abilities + wave control -->
+    <div id="side-right">
+      <div id="ability-bar"></div>
+      <button id="wave-btn" class="wave-btn">
+        <span class="wb-title">Send Wave</span>
+        <span class="wb-sub">+bonus</span>
+      </button>
+    </div>
+
+    <!-- Selected tower / base inspector -->
+    <div id="inspector" class="panel hidden"></div>
+
+    <!-- Build bar -->
+    <div id="build-bar"></div>
+
+    <!-- Floating messages -->
+    <div id="banner" class="banner hidden"></div>
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <!-- ================= SCREENS ================= -->
+  <div id="screen-menu" class="screen">
+    <div class="menu-wrap">
+      <h1 class="logo">IRON<span>BASTION</span></h1>
+      <p class="tagline">Hold the line. Upgrade everything. Never stop.</p>
+      <div class="menu-buttons">
+        <button class="big-btn primary" data-nav="maps-campaign">⚔ Campaign</button>
+        <button class="big-btn" data-nav="maps-endless">∞ Endless</button>
+        <button class="big-btn" data-nav="skills">🧠 Skill Tree <span id="rp-badge" class="badge">0</span></button>
+        <button class="big-btn ghost" data-nav="settings">⚙ Settings</button>
+      </div>
+      <div id="menu-stats" class="menu-stats"></div>
+    </div>
+  </div>
+
+  <div id="screen-maps" class="screen hidden">
+    <div class="screen-head">
+      <button class="back-btn" data-nav="menu">‹ Back</button>
+      <h2 id="maps-title">Select Sector</h2>
+      <div class="head-right"><span class="rp-pill">◆ <span id="rp-badge2">0</span> RP</span></div>
+    </div>
+    <div id="map-list" class="card-grid"></div>
+  </div>
+
+  <div id="screen-skills" class="screen hidden">
+    <div class="screen-head">
+      <button class="back-btn" data-nav="menu">‹ Back</button>
+      <h2>Research &amp; Skills</h2>
+      <div class="head-right">
+        <span class="rp-pill">◆ <span id="rp-badge3">0</span> RP</span>
+        <button class="head-btn" id="respec-btn">Respec</button>
+      </div>
+    </div>
+    <div id="skill-tabs" class="tabs"></div>
+    <div id="skill-tree" class="skill-tree"></div>
+    <div id="skill-detail" class="skill-detail"></div>
+  </div>
+
+  <div id="screen-settings" class="screen hidden">
+    <div class="screen-head">
+      <button class="back-btn" data-nav="menu">‹ Back</button>
+      <h2>Settings</h2>
+    </div>
+    <div class="settings-wrap" id="settings-body"></div>
+  </div>
+
+  <!-- ================= OVERLAYS ================= -->
+  <div id="overlay-pause" class="overlay hidden">
+    <div class="dialog">
+      <h2>Paused</h2>
+      <div class="dialog-stats" id="pause-stats"></div>
+      <div class="dialog-buttons">
+        <button class="big-btn primary" id="resume-btn">▶ Resume</button>
+        <button class="big-btn" id="restart-btn">↻ Restart Sector</button>
+        <button class="big-btn ghost" id="quit-btn">✕ Abandon Run</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay-result" class="overlay hidden">
+    <div class="dialog">
+      <h2 id="result-title">Sector Lost</h2>
+      <div class="dialog-stats" id="result-stats"></div>
+      <div class="dialog-buttons">
+        <button class="big-btn primary" id="result-again">↻ Try Again</button>
+        <button class="big-btn" id="result-menu">⌂ Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rotate-hint" class="rotate-hint hidden">
+    <div>
+      <div class="rot-ico">⟳</div>
+      <p>Rotate your tablet to landscape</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/config.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/save.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
