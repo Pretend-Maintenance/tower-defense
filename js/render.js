@@ -8,9 +8,27 @@
 
   const R = { canvas: null, ctx: null, bg: null, bgMapId: null, t: 0 };
 
+  R.q = 1;
+
   R.init = function (canvas) {
     R.canvas = canvas;
     R.ctx = canvas.getContext('2d');
+    R.resize(canvas.clientWidth || G.w);
+  };
+
+  /**
+   * Size the backing store to the field, scaled for the display's pixel
+   * density so the art stays sharp — capped so a retina 13" tablet does not
+   * end up pushing four megapixels a frame.
+   */
+  R.resize = function (cssWidth) {
+    const dpr = window.devicePixelRatio || 1;
+    const q = U.clamp((cssWidth * dpr) / G.w, 1, 1.6);
+    if (Math.abs(q - R.q) < 0.02 && R.canvas.width === Math.round(G.w * q)) return;
+    R.q = q;
+    R.canvas.width = Math.round(G.w * q);
+    R.canvas.height = Math.round(G.h * q);
+    R.bgMapId = null;   // background cache is resolution dependent
   };
 
   /* Pre-rendered radial glow, tinted per colour and cached — building a real
@@ -36,9 +54,11 @@
 
   /* ---------------- background (cached per sector) ---------------- */
   function buildBackground(map) {
+    const q = R.q;
     const cv = document.createElement('canvas');
-    cv.width = G.w; cv.height = G.h;
+    cv.width = Math.round(G.w * q); cv.height = Math.round(G.h * q);
     const x = cv.getContext('2d');
+    x.scale(q, q);
     const th = map.theme;
 
     const grad = x.createLinearGradient(0, 0, G.w, G.h);
@@ -93,11 +113,13 @@
 
     // spawn markers
     map.pixelPaths.forEach(function (pts) {
+      // Lanes start just off the field, so pull the marker back inside.
       const p = pts[0];
+      const mx = U.clamp(p.x, 30, G.w - 30), my = U.clamp(p.y, 30, G.h - 30);
       x.fillStyle = 'rgba(255,90,110,.18)';
-      x.beginPath(); x.arc(p.x, p.y, 44, 0, TAU); x.fill();
+      x.beginPath(); x.arc(mx, my, 40, 0, TAU); x.fill();
       x.strokeStyle = 'rgba(255,90,110,.55)'; x.lineWidth = 3;
-      x.beginPath(); x.arc(p.x, p.y, 30, 0, TAU); x.stroke();
+      x.beginPath(); x.arc(mx, my, 27, 0, TAU); x.stroke();
     });
 
     return cv;
@@ -108,6 +130,7 @@
     const ctx = R.ctx;
     R.t += 1 / 60;
 
+    ctx.setTransform(R.q, 0, 0, R.q, 0, 0);
     if (!game.map) { ctx.clearRect(0, 0, G.w, G.h); return; }
     if (R.bgMapId !== game.map.id) { R.bg = buildBackground(game.map); R.bgMapId = game.map.id; }
 
@@ -115,7 +138,7 @@
     if (game.shakeAmt > 0) {
       ctx.translate(U.rand(-game.shakeAmt, game.shakeAmt) * 0.5, U.rand(-game.shakeAmt, game.shakeAmt) * 0.5);
     }
-    ctx.drawImage(R.bg, 0, 0);
+    ctx.drawImage(R.bg, 0, 0, G.w, G.h);
 
     drawNapalm(ctx, game);
     drawBuildOverlay(ctx, game, ui);
@@ -631,7 +654,9 @@
     U.poly(ctx, cc.x, cc.y, 34, 6, 0); ctx.fill();
     map.pixelPaths.forEach(function (pts) {
       ctx.fillStyle = '#ff5a6e';
-      ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, 22, 0, TAU); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(U.clamp(pts[0].x, 24, G.w - 24), U.clamp(pts[0].y, 24, G.h - 24), 22, 0, TAU);
+      ctx.fill();
     });
     ctx.restore();
   };

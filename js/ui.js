@@ -23,7 +23,7 @@
   UI.init = function (game) {
     UI.game = game;
     ['stage', 'game-canvas', 'hud-top', 'hp-fill', 'shield-fill', 'hp-text', 'gold-text', 'wave-text', 'score-text',
-     'speed-btn', 'pause-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
+     'speed-btn', 'pause-btn', 'base-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
      'screen-menu', 'screen-maps', 'screen-skills', 'screen-settings', 'map-list', 'maps-title',
      'skill-tabs', 'skill-tree', 'skill-detail', 'settings-body', 'overlay-pause', 'overlay-result',
      'result-title', 'result-stats', 'pause-stats', 'menu-stats', 'rotate-hint', 'gold-chip']
@@ -54,9 +54,15 @@
      ================================================================ */
   UI.layout = function () {
     const w = window.innerWidth, h = window.innerHeight;
-    const topPad = 78, botPad = 118, sidePad = 12;
+    const sidePad = 10;
+    // Measure the chrome rather than assuming its height — it changes with
+    // font size, safe-area insets and the small-screen media queries.
+    const hud = el['hud-top'].getBoundingClientRect();
+    const bar = el['build-bar'].getBoundingClientRect();
+    const topPad = (hud.height ? hud.bottom : 60) + 6;
+    const botPad = (bar.height ? h - bar.top : 100) + 6;
     // The ability rail lives to the right of the field, never on top of it.
-    const rail = w < 720 ? 76 : 100;
+    const rail = w < 720 ? 68 : 88;
     document.documentElement.style.setProperty('--rail', rail - 10 + 'px');
     const availW = Math.max(200, w - sidePad * 2 - rail);
     const availH = Math.max(200, h - topPad - botPad);
@@ -68,6 +74,7 @@
     cv.style.left = (sidePad + availW / 2) + 'px';
     cv.style.top = (topPad + availH / 2) + 'px';
     UI.scale = scale;
+    TD.Render.resize(cw);
     el['rotate-hint'].classList.toggle('hidden', !(h > w && w < 700));
   };
 
@@ -342,8 +349,10 @@
       const t = UI.inspect.tower;
       if (game.towers.indexOf(t) === -1) { UI.inspect = null; box.classList.add('hidden'); return; }
       box.innerHTML = towerPanelHTML(t, game);
+      box.classList.toggle('side-right', t.x < G.w * 0.5);
     } else {
       box.innerHTML = basePanelHTML(game);
+      box.classList.toggle('side-right', game.coreCenter.x < G.w * 0.5);
     }
   };
 
@@ -484,6 +493,19 @@
     });
 
     el['pause-btn'].addEventListener('click', function () { UI.pause(); });
+
+    // The core sits at the edge of the field and a panel can end up over it,
+    // so base upgrades also get a permanent button.
+    el['base-btn'].addEventListener('click', function () {
+      const game = UI.game;
+      if (game.state !== 'playing') return;
+      const open = UI.inspect && UI.inspect.kind === 'base';
+      game.selected = null;
+      UI.setBuild(null);
+      UI.inspect = open ? null : { kind: 'base' };
+      UI.refreshInspector(true);
+      TD.Audio.play('ui');
+    });
   }
 
   UI.pause = function () {
@@ -612,7 +634,7 @@
       const card = document.createElement('button');
       card.className = 'map-card' + (unlocked ? '' : ' locked');
       card.innerHTML =
-        '<canvas width="520" height="260"></canvas>' +
+        '<canvas width="520" height="312"></canvas>' +
         '<div class="mc-body"><h3>' + (unlocked ? map.name : '🔒 ' + map.name) + '</h3><p>' + map.desc + '</p></div>' +
         '<div class="mc-foot">' +
           '<span class="tag' + (map.difficulty > 1.2 ? ' hard' : '') + '">Threat ×' + map.difficulty.toFixed(2) + '</span>' +

@@ -39,8 +39,8 @@ deeper into the run you are.
 | Action | How |
 | --- | --- |
 | Build | Tap a turret card, then tap a build site. Drag before releasing to reposition. |
-| Inspect / upgrade / sell | Tap a placed turret. |
-| Base upgrades | Tap the glowing core. |
+| Inspect / upgrade / sell | Tap a placed turret. The panel opens on the side away from it. |
+| Base upgrades | Tap the glowing core, or the 🛡 button in the top bar. |
 | Abilities | Tap the icon on the right rail. Airstrike then asks you to tap a target. |
 | Send a wave early | Tap the wave button — the unused prep time is paid out in gold. |
 | Speed / pause | Buttons in the top bar (3× unlocks in the skill tree). |
@@ -91,5 +91,9 @@ armor-heavy Brutes, physical-resistant Wraiths, and three boss classes.
 | `js/audio.js` | Small WebAudio blip synth |
 
 Tuning the game means editing `js/config.js` — the numbers all live there.
-The playfield is a fixed 1600×896 logical canvas scaled to fit any screen, so
-touch coordinates and layout stay consistent across devices.
+The playfield is a fixed 20×12 tile grid (1280×768 logical units) scaled to
+fit any screen, so touch coordinates and layout stay consistent across
+devices. The grid's 1.67:1 shape is deliberately close to a tablet's own
+aspect ratio — a wider field would letterbox into a strip and shrink every
+tile. The canvas backing store is sized from the display's pixel density
+(capped at 1.6x) in `Render.resize`.

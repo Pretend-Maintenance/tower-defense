@@ -6,9 +6,11 @@
 (function (TD) {
   'use strict';
 
-  const GRID = { cols: 25, rows: 14, cell: 64 };
-  GRID.w = GRID.cols * GRID.cell;   // 1600
-  GRID.h = GRID.rows * GRID.cell;   // 896
+  // 20x12 tiles at 1.67:1 — close to a tablet's own aspect, so the field
+  // scales up to fill the screen instead of being letterboxed into a strip.
+  const GRID = { cols: 20, rows: 12, cell: 64 };
+  GRID.w = GRID.cols * GRID.cell;   // 1280
+  GRID.h = GRID.rows * GRID.cell;   // 768
 
   const G = {
     cols: GRID.cols, rows: GRID.rows, cell: GRID.cell, w: GRID.w, h: GRID.h,
@@ -22,42 +24,42 @@
 
   const MAPS = [
     {
-      id: 'verdant', name: 'Verdant Pass', difficulty: 1.0, waves: 25,
+      id: 'verdant', name: 'Verdant Pass', difficulty: 0.9, waves: 25,
       desc: 'A wide green corridor. Plenty of room to build — a good place to learn the ropes.',
       theme: { ground: '#16241c', ground2: '#122018', road: '#2e3a2c', roadEdge: '#48583f', grid: 'rgba(120,220,150,.06)', decor: '#1d3325' },
-      core: { c: 23, r: 6 },
-      paths: [[{ c: -1, r: 7 }, { c: 5, r: 7 }, { c: 5, r: 3 }, { c: 12, r: 3 }, { c: 12, r: 11 }, { c: 19, r: 11 }, { c: 19, r: 6 }, { c: 23, r: 6 }]],
-      blocked: [[2, 2], [2, 3], [3, 12], [9, 6], [10, 6], [16, 8], [21, 1], [22, 12]]
+      core: { c: 18, r: 8 },
+      paths: [[{ c: -1, r: 6 }, { c: 3, r: 6 }, { c: 3, r: 2 }, { c: 7, r: 2 }, { c: 7, r: 9 }, { c: 11, r: 9 }, { c: 11, r: 3 }, { c: 15, r: 3 }, { c: 15, r: 8 }, { c: 18, r: 8 }]],
+      blocked: [[1, 1], [1, 9], [5, 4], [5, 10], [9, 0], [9, 6], [13, 7], [13, 10], [17, 1], [19, 4]]
     },
     {
       id: 'ashfall', name: 'Ashfall Canyon', difficulty: 1.18, waves: 30,
       desc: 'A long switchback road through volcanic rock. Longer route, but far fewer build sites.',
       theme: { ground: '#241a18', ground2: '#1d1412', road: '#463830', roadEdge: '#6b5344', grid: 'rgba(255,160,120,.05)', decor: '#33211c' },
-      core: { c: 22, r: 7 },
-      paths: [[{ c: -1, r: 2 }, { c: 4, r: 2 }, { c: 4, r: 9 }, { c: 9, r: 9 }, { c: 9, r: 4 }, { c: 14, r: 4 }, { c: 14, r: 11 }, { c: 19, r: 11 }, { c: 19, r: 3 }, { c: 22, r: 3 }, { c: 22, r: 7 }]],
-      blocked: [[1, 6], [1, 7], [2, 6], [6, 1], [7, 1], [6, 12], [7, 12], [11, 7], [12, 7], [16, 2], [17, 2], [16, 13], [21, 10], [24, 11], [24, 12]]
+      core: { c: 18, r: 6 },
+      paths: [[{ c: -1, r: 1 }, { c: 3, r: 1 }, { c: 3, r: 8 }, { c: 7, r: 8 }, { c: 7, r: 3 }, { c: 11, r: 3 }, { c: 11, r: 10 }, { c: 15, r: 10 }, { c: 15, r: 2 }, { c: 18, r: 2 }, { c: 18, r: 6 }]],
+      blocked: [[1, 4], [1, 5], [5, 0], [5, 11], [9, 6], [13, 1], [13, 7], [17, 9], [19, 10], [0, 10]]
     },
     {
       id: 'foundry', name: 'Cryo Foundry', difficulty: 1.34, waves: 30,
       desc: 'Two intake lanes merge into one line. Defend the junction — or bleed on both fronts.',
       theme: { ground: '#141e2b', ground2: '#101825', road: '#31404f', roadEdge: '#54697f', grid: 'rgba(140,200,255,.06)', decor: '#1a2838' },
-      core: { c: 22, r: 7 },
+      core: { c: 18, r: 5 },
       paths: [
-        [{ c: -1, r: 3 }, { c: 6, r: 3 }, { c: 6, r: 7 }, { c: 13, r: 7 }, { c: 13, r: 2 }, { c: 18, r: 2 }, { c: 18, r: 10 }, { c: 22, r: 10 }, { c: 22, r: 7 }],
-        [{ c: -1, r: 11 }, { c: 6, r: 11 }, { c: 6, r: 7 }, { c: 13, r: 7 }, { c: 13, r: 2 }, { c: 18, r: 2 }, { c: 18, r: 10 }, { c: 22, r: 10 }, { c: 22, r: 7 }]
+        [{ c: -1, r: 2 }, { c: 5, r: 2 }, { c: 5, r: 6 }, { c: 10, r: 6 }, { c: 10, r: 1 }, { c: 14, r: 1 }, { c: 14, r: 9 }, { c: 18, r: 9 }, { c: 18, r: 5 }],
+        [{ c: -1, r: 10 }, { c: 5, r: 10 }, { c: 5, r: 6 }, { c: 10, r: 6 }, { c: 10, r: 1 }, { c: 14, r: 1 }, { c: 14, r: 9 }, { c: 18, r: 9 }, { c: 18, r: 5 }]
       ],
-      blocked: [[2, 6], [2, 7], [3, 6], [9, 10], [10, 10], [9, 11], [15, 5], [16, 5], [15, 12], [20, 1], [21, 1], [24, 3], [24, 4]]
+      blocked: [[2, 5], [2, 6], [7, 9], [8, 9], [12, 4], [12, 5], [16, 2], [17, 11], [19, 0], [0, 7]]
     },
     {
       id: 'spire', name: 'Void Spire', difficulty: 1.45, waves: 35,
       desc: 'Two independent breach lanes converge only at the very end. Split your firepower carefully.',
       theme: { ground: '#1b1630', ground2: '#151027', road: '#3b3358', roadEdge: '#615287', grid: 'rgba(190,160,255,.07)', decor: '#241d3d' },
-      core: { c: 23, r: 4 },
+      core: { c: 18, r: 3 },
       paths: [
-        [{ c: -1, r: 6 }, { c: 5, r: 6 }, { c: 5, r: 12 }, { c: 12, r: 12 }, { c: 12, r: 7 }, { c: 18, r: 7 }, { c: 18, r: 4 }, { c: 23, r: 4 }],
-        [{ c: -1, r: 1 }, { c: 9, r: 1 }, { c: 9, r: 5 }, { c: 15, r: 5 }, { c: 15, r: 1 }, { c: 20, r: 1 }, { c: 20, r: 4 }, { c: 23, r: 4 }]
+        [{ c: -1, r: 5 }, { c: 4, r: 5 }, { c: 4, r: 10 }, { c: 10, r: 10 }, { c: 10, r: 6 }, { c: 15, r: 6 }, { c: 15, r: 3 }, { c: 18, r: 3 }],
+        [{ c: -1, r: 0 }, { c: 7, r: 0 }, { c: 7, r: 3 }, { c: 12, r: 3 }, { c: 12, r: 0 }, { c: 16, r: 0 }, { c: 16, r: 3 }, { c: 18, r: 3 }]
       ],
-      blocked: [[2, 3], [3, 3], [2, 9], [7, 9], [8, 9], [7, 10], [11, 2], [12, 2], [13, 10], [14, 10], [17, 11], [18, 12], [22, 8], [23, 8], [0, 13]]
+      blocked: [[1, 2], [2, 8], [5, 2], [6, 7], [9, 1], [9, 8], [13, 8], [14, 10], [17, 7], [19, 11]]
     }
   ];
 
