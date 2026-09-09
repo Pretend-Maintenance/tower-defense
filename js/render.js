@@ -135,7 +135,9 @@
     const k = R.q * view.zoom;
     ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
     if (!game.map) { ctx.clearRect(0, 0, G.w, G.h); return; }
-    const bgKey = game.map.id + '@' + G.cols;
+    // Generated layouts share their sector's id, so the seed has to be part of
+    // the cache key or one layout redraws with another's road.
+    const bgKey = game.map.id + '@' + G.cols + '@' + (game.map.seed || 0);
     if (R.bgMapId !== bgKey) { R.bg = buildBackground(game.map); R.bgMapId = bgKey; }
 
     ctx.save();

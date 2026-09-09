@@ -29,11 +29,11 @@
   const MAPS = [
     {
       id: 'verdant', name: 'Verdant Pass', difficulty: 0.9, waves: 25,
-      desc: 'A wide green corridor. Plenty of room to build — a good place to learn the ropes.',
+      desc: 'A long switchback corridor that doubles back on itself twice. Room to build, and a long walk for anything trying to cross it.',
       theme: { ground: '#16241c', ground2: '#122018', road: '#2e3a2c', roadEdge: '#48583f', grid: 'rgba(120,220,150,.06)', decor: '#1d3325' },
-      core: { c: 18, r: 8 },
-      paths: [[{ c: -1, r: 6 }, { c: 3, r: 6 }, { c: 3, r: 2 }, { c: 7, r: 2 }, { c: 7, r: 9 }, { c: 11, r: 9 }, { c: 11, r: 3 }, { c: 15, r: 3 }, { c: 15, r: 8 }, { c: 18, r: 8 }]],
-      blocked: [[1, 1], [1, 9], [5, 4], [5, 10], [9, 0], [9, 6], [13, 7], [13, 10], [17, 1], [19, 4]]
+      core: { c: 18, r: 11 },
+      paths: [[{ c: -1, r: 1 }, { c: 17, r: 1 }, { c: 17, r: 4 }, { c: 2, r: 4 }, { c: 2, r: 8 }, { c: 13, r: 8 }, { c: 13, r: 11 }, { c: 18, r: 11 }]],
+      blocked: [[0, 6], [4, 2], [5, 6], [6, 10], [8, 3], [10, 6], [11, 2], [15, 6], [16, 9], [19, 3]]
     },
     {
       id: 'ashfall', name: 'Ashfall Canyon', difficulty: 1.18, waves: 30,

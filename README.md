@@ -46,17 +46,19 @@ deeper into the run you are.
   30. Your best wave per sector is recorded.
 
 **Generated layouts.** On by default. Every sector card in the picker previews
-a freshly generated road — a different serpentine, different turn spacing,
-different core approach, and on the harder sectors a second lane that merges
-into the first. **Reroll** rolls new ones for every sector at once; **Shuffle:
+a freshly generated road, in one of two shapes: a winding serpentine, or a
+long road that doubles back on itself in three sweeps (sometimes with a
+detour part-way along that leaves a pocket of build sites inside it). Turn
+spacing, row bands, the core approach and the rock scatter are all rolled,
+and the harder sectors can get a second lane that merges into the first. **Reroll** rolls new ones for every sector at once; **Shuffle:
 OFF** gives you the authored maps back. A layout is identified by a short seed
 (`#7A97`) shown on the card and in the pause screen, and Try Again replays the
 same one. The sector's theme, threat multiplier, wave count and progression are
 unchanged — only the ground is new — and the seed also varies the wave
 composition, so a reroll is a different fight rather than just a different road.
 Generated layouts are validated before they are offered: road length, build-site
-count and lane overlap all have to pass, and the gentler sectors hold a longer
-minimum road and never get a second lane.
+count, self-overlap and lane overlap all have to pass, and the gentler sectors
+hold a longer minimum road and never get a second lane.
 
 **Controls (all one-finger).**
 | Action | How |

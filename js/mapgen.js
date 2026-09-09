@@ -24,10 +24,10 @@
   ];
 
   const MIN_BUILD_SITES = 130;
-  const MAX_PATH = 3800;
+  const MAX_PATH = 4000;
   // A short road is the single biggest difficulty swing a layout can carry, so
   // the gentle sectors hold a longer floor than the punishing ones.
-  function minPathFor(difficulty) { return difficulty < 1.1 ? 2500 : 2300; }
+  function minPathFor(difficulty) { return difficulty < 1.1 ? 2800 : 2500; }
 
   function key(c, r) { return c + ',' + r; }
 
@@ -54,7 +54,7 @@
    * One attempt at a layout: a serpentine of vertical turns whose columns and
    * rows are both randomised, optionally with a second lane merging into it.
    */
-  function attempt(rng, cols, rows, twoLaneChance) {
+  function attemptSerpentine(rng, cols, rows, twoLaneChance) {
     const coreX = cols - 2;
 
     // Turn columns, left to right, with random spacing.
@@ -111,6 +111,57 @@
     return { paths: paths, core: { c: coreX, r: ys[xs.length] }, mergeAt: paths.length > 1 ? 2 : 1 };
   }
 
+  /**
+   * The other shape: a road that doubles back on itself. Three long lanes
+   * running right, then left, then right again — far more travel distance for
+   * the same field, and towers between the lanes cover two of them at once.
+   */
+  function attemptFold(rng, cols, rows, twoLaneChance) {
+    const coreX = cols - 2;
+
+    // Three lanes at independently jittered rows, folding down the field or up.
+    const y0 = Math.floor(rng() * 3);
+    const g1 = 3 + Math.floor(rng() * 3);
+    const g2 = 3 + Math.floor(rng() * 3);
+    if (y0 + g1 + g2 > rows - 2) return null;
+    let ys = [y0, y0 + g1, y0 + g1 + g2];
+    if (rng() < 0.5) ys = [rows - 1 - ys[0], rows - 1 - ys[1], rows - 1 - ys[2]];
+
+    const xR = coreX - 1 - Math.floor(rng() * 4);
+    const xL = 1 + Math.floor(rng() * 4);
+    if (xR - xL < 9) return null;
+
+    const wps = [{ c: -1, r: ys[0] }, { c: xR, r: ys[0] }, { c: xR, r: ys[1] }];
+
+    // Optional detour part-way along the middle lane: the road backs out,
+    // steps across and returns, leaving a pocket of build sites inside it.
+    const room = Math.min(Math.abs(ys[1] - ys[0]), Math.abs(ys[2] - ys[1]));
+    if (rng() < 0.55 && xR - xL >= 13 && room >= 4) {
+      const xm = xL + 6 + Math.floor(rng() * Math.max(1, xR - xL - 10));
+      const xm2 = xm - (2 + Math.floor(rng() * 3));
+      const dir = ys[1] > ys[0] ? -1 : 1;             // step back toward the previous lane
+      const yj = ys[1] + dir * 2;
+      if (xm2 > xL + 1 && xm < xR - 1 && yj > 0 && yj < rows - 1) {
+        wps.push({ c: xm, r: ys[1] }, { c: xm, r: yj }, { c: xm2, r: yj }, { c: xm2, r: ys[1] });
+      }
+    }
+
+    wps.push({ c: xL, r: ys[1] }, { c: xL, r: ys[2] }, { c: coreX, r: ys[2] });
+    const paths = [wps];
+
+    // A second lane can join the final corner from the far side.
+    if (rng() < twoLaneChance) {
+      const down = ys[2] > ys[1];
+      const lo2 = down ? ys[2] + 3 : 0;
+      const hi2 = down ? rows - 1 : ys[2] - 3;
+      if (hi2 >= lo2) {
+        const y2 = lo2 + Math.floor(rng() * (hi2 - lo2 + 1));
+        paths.push([{ c: -1, r: y2 }, { c: xL, r: y2 }].concat(wps.slice(wps.length - 2)));
+      }
+    }
+    return { paths: paths, core: { c: coreX, r: ys[2] } };
+  }
+
   /** Reject layouts that are too short, too cramped, or overlap themselves. */
   function validate(layout, cols, rows, minPath) {
     const road = {};
@@ -125,6 +176,17 @@
 
     const len = pathCells(layout.paths[0]) * 64;
     if (len < minPath || len > MAX_PATH) return false;
+
+    // Detours must not put the road back on top of itself.
+    for (let i = 0; i < layout.paths.length; i++) {
+      const cells = cellsOf(layout.paths[i]);
+      const seen = {};
+      for (let j = 0; j < cells.length; j++) {
+        const k = key(cells[j][0], cells[j][1]);
+        if (seen[k] && j > 0 && (cells[j][0] !== cells[j - 1][0] || cells[j][1] !== cells[j - 1][1])) return false;
+        seen[k] = true;
+      }
+    }
 
     // A second lane may cross the first, but must not run along it.
     if (layout.paths.length > 1) {
@@ -193,7 +255,10 @@
     let layout = null;
     for (let i = 0; i < 60 && !layout; i++) {
       const rng = U.seeded((seed + i * 7919) >>> 0);
-      const a = attempt(rng, cols, rows, twoLane);
+      // Alternate between the two shapes so a sector can be either a winding
+      // serpentine or a long doubling-back road.
+      const a = rng() < 0.5 ? attemptFold(rng, cols, rows, twoLane)
+                            : attemptSerpentine(rng, cols, rows, twoLane);
       if (a && validate(a, cols, rows, minPath)) { a.rng = rng; layout = a; }
     }
     if (!layout) return null;   // caller falls back to the authored layout
