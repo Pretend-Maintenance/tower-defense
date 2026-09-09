@@ -138,6 +138,22 @@ button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer
 .chip.on{background:rgba(56,225,255,.25);border-color:var(--acc)}
 .sect-title{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--txt-dim);margin-top:4px}
 
+/* ---------- boss health ---------- */
+.boss-bar{position:absolute;z-index:22;left:50%;transform:translateX(-50%);
+  top:calc(var(--field-top,60px) + 6px);width:min(440px,58vw);pointer-events:none;text-align:center}
+.boss-bar .bb-name{display:inline-block;padding:1px 12px;border-radius:10px;background:rgba(6,10,18,.75);
+  font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#ffb0bb;
+  text-shadow:0 2px 6px #000;margin-bottom:3px;font-weight:700}
+.boss-bar .bb-track{position:relative;height:12px;border-radius:7px;background:rgba(6,10,18,.85);
+  border:1px solid rgba(255,90,110,.55);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.boss-bar .bb-fill{position:absolute;left:0;top:0;bottom:0;width:100%;
+  background:linear-gradient(90deg,#a8203a,#ff5a6e);transition:width .12s linear}
+.boss-bar .bb-shield{position:absolute;left:0;top:0;bottom:0;width:0;
+  background:linear-gradient(90deg,rgba(56,225,255,.75),rgba(124,92,255,.85));transition:width .12s linear}
+body.compact .boss-bar{width:min(300px,46vw)}
+body.compact .boss-bar .bb-name{font-size:10px;letter-spacing:2px;margin-bottom:2px}
+body.compact .boss-bar .bb-track{height:9px}
+
 /* ---------- banners / toast ---------- */
 .banner{position:absolute;z-index:30;left:50%;top:22%;transform:translate(-50%,-50%);font-size:46px;font-weight:900;
   letter-spacing:4px;text-transform:uppercase;text-shadow:0 0 28px rgba(56,225,255,.8),0 6px 18px #000;

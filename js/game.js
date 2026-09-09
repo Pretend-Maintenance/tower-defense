@@ -77,7 +77,7 @@
       if (S.abilityUnlocked(id)) Game.abilities[id] = { id: id, cd: 0, max: C.ABILITIES[id].cd };
     });
 
-    this.coreCenter = { x: G.cx(this.map.core.c) - G.cell / 2, y: G.cy(this.map.core.r) - G.cell / 2 };
+    this.coreCenter = { x: G.cx(this.map.coreCell.c) - G.cell / 2, y: G.cy(this.map.coreCell.r) - G.cell / 2 };
     this.state = 'playing';
     this.emit('start');
     this.emit('change');
@@ -294,7 +294,10 @@
     this.emit('toast', 'Wave ' + this.wave + ' cleared  +' + reward + ' gold');
 
     if (!this.endless && this.wave >= this.totalWaves) { this.endRun(true); return; }
-    this.prepTimer = C.BAL.prepTime;
+    // A boss is announced with extra time to spend the wave reward.
+    const nextIsBoss = (this.wave + 1) % 10 === 0;
+    this.prepTimer = C.BAL.prepTime + (nextIsBoss ? C.BAL.bossPrepBonus : 0);
+    if (nextIsBoss) this.emit('toast', 'Boss inbound next wave — prepare');
     this.emit('wavecleared', this.wave);
     this.emit('change');
   };

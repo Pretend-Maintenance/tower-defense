@@ -26,7 +26,10 @@ Progress (research points, unlocks, best endless waves, settings) is saved to
 along the bottom; on shorter screens (small Android tablets, phones) it moves
 to a vertical rail beside the field, which buys back the vertical space that
 matters most there. The game measures both layouts and keeps whichever gives
-the bigger field, so there is nothing to configure. Pinch to zoom in when the
+the bigger field, so there is nothing to configure. Screens with width to
+spare also get a wider field — sectors are authored on 20x12 tiles and grow
+to as many as 24 columns, so the approach lane starts further out and there
+is more room to build rather than empty margin. Pinch to zoom in when the
 tiles are small for your fingers.
 
 ## The game

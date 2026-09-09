@@ -6,11 +6,15 @@
 (function (TD) {
   'use strict';
 
-  // 20x12 tiles at 1.67:1 — close to a tablet's own aspect, so the field
-  // scales up to fill the screen instead of being letterboxed into a strip.
-  const GRID = { cols: 20, rows: 12, cell: 64 };
-  GRID.w = GRID.cols * GRID.cell;   // 1280
-  GRID.h = GRID.rows * GRID.cell;   // 768
+  // Sectors are authored on 20x12 tiles (1.67:1, close to a tablet's own
+  // aspect). Screens with spare width get up to EXTRA_MAX further columns of
+  // field rather than empty margins — the approach lane simply starts further
+  // out, so the same map gains build room instead of shrinking its tiles.
+  const BASE_COLS = 20, EXTRA_MAX = 4;
+  const GRID = { cols: BASE_COLS, rows: 12, cell: 64 };
+  GRID.w = GRID.cols * GRID.cell;
+  GRID.h = GRID.rows * GRID.cell;
+  let extraCols = 0;
 
   const G = {
     cols: GRID.cols, rows: GRID.rows, cell: GRID.cell, w: GRID.w, h: GRID.h,
@@ -80,25 +84,52 @@
     return out;
   }
 
+  /** Deterministic scatter of rocks across the widened approach margin. */
+  function marginDecor(map, off, road) {
+    const out = [];
+    if (off <= 0) return out;
+    let h = 0;
+    for (let i = 0; i < map.id.length; i++) h = (h * 31 + map.id.charCodeAt(i)) >>> 0;
+    const rng = TD.U.seeded(h + off * 7919);
+    for (let c = 0; c <= off; c++) {
+      for (let r = 0; r < GRID.rows; r++) {
+        if (road[G.key(c, r)]) continue;
+        if (rng() < 0.1) out.push([c, r]);
+      }
+    }
+    return out;
+  }
+
   /** Precompute pixel waypoints, road cells and a build mask for a sector. */
   function prepare(map) {
     if (map._ready) return map;
-    map.pixelPaths = map.paths.map(function (wps) {
+    const off = extraCols;
+
+    // Waypoints shift right by the offset; the first one stays off-field so
+    // enemies still walk in from the left edge rather than appearing inside it.
+    const shifted = map.paths.map(function (wps) {
+      return wps.map(function (p, i) { return { c: i === 0 ? -1 : p.c + off, r: p.r }; });
+    });
+    map.pixelPaths = shifted.map(function (wps) {
       return wps.map(function (p) { return { x: G.cx(p.c), y: G.cy(p.r) }; });
     });
     map.pathLengths = map.pixelPaths.map(TD.U.pathLength);
 
     const road = {};
-    map.paths.forEach(function (wps) {
+    shifted.forEach(function (wps) {
       cellsForPath(wps).forEach(function (cr) { road[G.key(cr[0], cr[1])] = true; });
     });
     map.roadCells = road;
 
+    const decor = (map.blocked || []).map(function (cr) { return [cr[0] + off, cr[1]]; })
+      .concat(marginDecor(map, off, road));
+    map.decorCells = decor;
     const blocked = {};
-    (map.blocked || []).forEach(function (cr) { blocked[G.key(cr[0], cr[1])] = true; });
+    decor.forEach(function (cr) { blocked[G.key(cr[0], cr[1])] = true; });
 
     // Cells taken by the core (2x2 footprint anchored top-left of core cell).
-    const core = map.core;
+    const core = { c: map.core.c + off, r: map.core.r };
+    map.coreCell = core;
     map.coreCells = [[core.c, core.r], [core.c - 1, core.r], [core.c, core.r - 1], [core.c - 1, core.r - 1]];
 
     map.buildable = function (c, r) {
@@ -117,9 +148,29 @@
     return map;
   }
 
+  /**
+   * Widen or narrow the field. Only called between runs — the tower grid is
+   * addressed in cell coordinates, so changing it mid-run would move things.
+   * Returns true when the geometry actually changed.
+   */
+  function setFieldCols(cols) {
+    const want = Math.round(TD.U.clamp(cols, BASE_COLS, BASE_COLS + EXTRA_MAX));
+    if (want === GRID.cols) return false;
+    extraCols = want - BASE_COLS;
+    GRID.cols = want;
+    GRID.w = want * GRID.cell;
+    G.cols = want;
+    G.w = GRID.w;
+    MAPS.forEach(function (m) { m._ready = false; prepare(m); });
+    return true;
+  }
+
   MAPS.forEach(prepare);
 
   TD.G = G;
   TD.MAPS = MAPS;
+  TD.BASE_COLS = BASE_COLS;
+  TD.MAX_COLS = BASE_COLS + EXTRA_MAX;
+  TD.setFieldCols = setFieldCols;
   TD.mapById = function (id) { return MAPS.filter(function (m) { return m.id === id; })[0] || MAPS[0]; };
 })(window.TD);

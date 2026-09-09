@@ -101,7 +101,7 @@
     });
 
     // decor blockers
-    (map.blocked || []).forEach(function (cr) {
+    map.decorCells.forEach(function (cr) {
       const cx = G.cx(cr[0]), cy = G.cy(cr[1]);
       x.fillStyle = th.decor;
       U.poly(x, cx, cy, G.cell * 0.42, 6, Math.random());
@@ -135,7 +135,8 @@
     const k = R.q * view.zoom;
     ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k);
     if (!game.map) { ctx.clearRect(0, 0, G.w, G.h); return; }
-    if (R.bgMapId !== game.map.id) { R.bg = buildBackground(game.map); R.bgMapId = game.map.id; }
+    const bgKey = game.map.id + '@' + G.cols;
+    if (R.bgMapId !== bgKey) { R.bg = buildBackground(game.map); R.bgMapId = bgKey; }
 
     ctx.save();
     if (game.shakeAmt > 0) {
@@ -648,11 +649,11 @@
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
       ctx.stroke();
     });
-    (map.blocked || []).forEach(function (cr) {
+    map.decorCells.forEach(function (cr) {
       ctx.fillStyle = th.decor;
       U.poly(ctx, G.cx(cr[0]), G.cy(cr[1]), 22, 6, 0); ctx.fill();
     });
-    const cc = { x: G.cx(map.core.c) - G.cell / 2, y: G.cy(map.core.r) - G.cell / 2 };
+    const cc = { x: G.cx(map.coreCell.c) - G.cell / 2, y: G.cy(map.coreCell.r) - G.cell / 2 };
     ctx.fillStyle = '#43e07a';
     U.poly(ctx, cc.x, cc.y, 34, 6, 0); ctx.fill();
     map.pixelPaths.forEach(function (pts) {

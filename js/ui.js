@@ -24,6 +24,7 @@
     UI.game = game;
     ['stage', 'game-canvas', 'hud-top', 'hp-fill', 'shield-fill', 'hp-text', 'gold-text', 'wave-text', 'score-text',
      'speed-btn', 'pause-btn', 'base-btn', 'zoom-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
+     'boss-bar', 'bb-fill', 'bb-shield',
      'screen-menu', 'screen-maps', 'screen-skills', 'screen-settings', 'map-list', 'maps-title',
      'skill-tabs', 'skill-tree', 'skill-detail', 'settings-body', 'overlay-pause', 'overlay-result',
      'result-title', 'result-stats', 'pause-stats', 'menu-stats', 'rotate-hint', 'gold-chip']
@@ -98,7 +99,16 @@
     const root = document.documentElement.style;
     root.setProperty('--field-top', L.topPad + 'px');
 
-    const cw = G.w * L.scale, ch = G.h * L.scale;
+    // Widen the field to use whatever horizontal room this screen has spare.
+    // Only between runs: the tower grid is addressed in cells, so resizing it
+    // mid-run would move everything that is already built.
+    UI.desiredCols = Math.round(TD.U.clamp((L.availW / L.availH) * G.rows, TD.BASE_COLS, TD.MAX_COLS));
+    const g = UI.game;
+    if (!g || (g.state !== 'playing' && g.state !== 'paused')) TD.setFieldCols(UI.desiredCols);
+
+    const scale = Math.min(L.availW / G.w, L.availH / G.h);
+    L.scale = scale;
+    const cw = G.w * scale, ch = G.h * scale;
     const cv = el['game-canvas'];
     cv.style.width = cw + 'px';
     cv.style.height = ch + 'px';
@@ -408,6 +418,27 @@
         : 'ready';
     }
     UI.refreshAbilities();
+    UI.syncBossBar();
+  };
+
+  /** A boss fight is long; showing its health keeps it readable as progress. */
+  UI.syncBossBar = function () {
+    const game = UI.game;
+    let boss = null;
+    for (let i = 0; i < game.enemies.length; i++) {
+      const e = game.enemies[i];
+      if (!e.boss || !e.alive) continue;
+      if (!boss || e.hp + e.shield < boss.hp + boss.shield) boss = e;
+    }
+    const bar = el['boss-bar'];
+    if (!boss) { if (!bar.classList.contains('hidden')) bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    if (UI.lastHud.bossName !== boss.name) {
+      bar.querySelector('.bb-name').textContent = boss.name;
+      UI.lastHud.bossName = boss.name;
+    }
+    el['bb-fill'].style.width = U.clamp(boss.hp / boss.maxHp, 0, 1) * 100 + '%';
+    el['bb-shield'].style.width = boss.maxShield ? U.clamp(boss.shield / boss.maxShield, 0, 1) * 100 + '%' : '0%';
   };
 
   /* ================================================================
@@ -761,6 +792,7 @@
     if (name === 'settings') { el['screen-settings'].classList.remove('hidden'); buildSettings(); }
     const hideHud = name !== 'game';
     ['hud-top', 'build-bar', 'inspector'].forEach(function (id) { el[id].style.visibility = hideHud ? 'hidden' : 'visible'; });
+    if (hideHud) el['boss-bar'].classList.add('hidden');
     document.getElementById('side-right').style.visibility = hideHud ? 'hidden' : 'visible';
     if (name === 'game' && !inGame) return;
   };
@@ -813,7 +845,9 @@
 
   UI.startRun = function (mapId, mode) {
     const game = UI.game;
+    if (UI.desiredCols) TD.setFieldCols(UI.desiredCols);
     game.start(mapId, mode);
+    UI.layout();
     UI.buildId = null;
     UI.inspect = null;
     UI.hoverCell = null;

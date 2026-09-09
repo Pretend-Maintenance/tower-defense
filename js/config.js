@@ -14,10 +14,11 @@
     waveClearScale: 5,
     earlyCallBonus: 0.55,     // fraction of remaining prep time paid as gold
     prepTime: 22,             // seconds between waves (auto-start)
+    bossPrepBonus: 10,        // extra prep before a boss wave
     firstPrepTime: 30,
     maxLevel: 5,
     branchLevel: 3,
-    armorFloor: 0.18,         // damage can never be reduced below 18% by armor
+    armorFloor: 0.25,         // damage can never be reduced below 25% by armor
     energyArmorPierce: 0.5,   // energy damage ignores half of armor
     rpPerWave: 0.7
   };
@@ -184,10 +185,10 @@
     hive:      { name: 'Hive',       hp: 240,  speed: 50,  armor: 3,  bounty: 16, leak: 3,  r: 20, color: '#c79bff', shape: 'blob', splits: { type: 'spawnling', count: 4 } },
     spawnling: { name: 'Spawnling',  hp: 26,   speed: 92,  armor: 0,  bounty: 2,  leak: 1,  r: 8,  color: '#d7b6ff', shape: 'tri' },
     wraith:    { name: 'Wraith',     hp: 175,  speed: 78,  armor: 0,  bounty: 14, leak: 2,  r: 14, color: '#a5b6ff', shape: 'ghost', resist: { physical: 0.5 }, slowResist: 0.5 },
-    juggernaut:{ name: 'Juggernaut', hp: 900,  speed: 38,  armor: 14, bounty: 45, leak: 8,  r: 24, color: '#ff8b5a', shape: 'hex', elite: true },
-    colossus:  { name: 'Colossus',   hp: 4200, speed: 32,  armor: 20, bounty: 200, leak: 30, r: 34, color: '#ff5a6e', shape: 'boss', boss: true, shield: 800, shieldRegen: 40, shieldDelay: 6 },
-    overlord:  { name: 'Overlord',   hp: 3400, speed: 54,  armor: 10, bounty: 220, leak: 28, r: 32, color: '#ff7ad9', shape: 'bossAir', boss: true, flying: true },
-    titan:     { name: 'Titan',      hp: 9000, speed: 30,  armor: 28, bounty: 400, leak: 45, r: 40, color: '#ffd166', shape: 'boss', boss: true, armorRegen: true, heal: 40, healRange: 200 }
+    juggernaut:{ name: 'Juggernaut', hp: 750,  speed: 38,  armor: 10, bounty: 50, leak: 6,  r: 24, color: '#ff8b5a', shape: 'hex', elite: true },
+    colossus:  { name: 'Colossus',   hp: 2400, speed: 32,  armor: 11, bounty: 240, leak: 18, r: 34, color: '#ff5a6e', shape: 'boss', boss: true, shield: 350, shieldRegen: 25, shieldDelay: 6 },
+    overlord:  { name: 'Overlord',   hp: 2200, speed: 54,  armor: 7,  bounty: 250, leak: 16, r: 32, color: '#ff7ad9', shape: 'bossAir', boss: true, flying: true },
+    titan:     { name: 'Titan',      hp: 6500, speed: 30,  armor: 18, bounty: 420, leak: 28, r: 40, color: '#ffd166', shape: 'boss', boss: true, armorRegen: true, heal: 40, healRange: 200 }
   };
 
   /* ---------------------------------------------------------
@@ -229,7 +230,10 @@
       const bossType = endless && wave >= 30 && wave % 20 === 0 ? 'titan'
         : (wave / 10) % 2 === 0 ? 'overlord' : 'colossus';
       const count = endless ? 1 + Math.floor((wave - 10) / 30) : 1;
-      groups.push({ type: bossType, count: count, gap: 2.4, delay: 1.2, hpMul: hpMul, spMul: spMul, arMul: arMul });
+      // Compressed curve: a boss should be a hard fight, not an unkillable wall
+      // that outgrows what the player can possibly have built by then.
+      groups.push({ type: bossType, count: count, gap: 2.4, delay: 1.2,
+                    hpMul: Math.pow(hpMul, 0.88), spMul: spMul, arMul: arMul });
       budget *= 0.55;
     }
 
@@ -262,7 +266,7 @@
       return m;
     }
     if (kind === 'speed') return Math.min(1.85, 1 + w * 0.011);
-    if (kind === 'armor') return 1 + w * 0.085 * difficulty;
+    if (kind === 'armor') return 1 + w * 0.055 * difficulty;
     return 1;
   }
 
