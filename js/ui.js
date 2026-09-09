@@ -26,12 +26,13 @@
      'speed-btn', 'pause-btn', 'base-btn', 'zoom-btn', 'build-bar', 'inspector', 'ability-bar', 'wave-btn', 'banner', 'toast',
      'boss-bar', 'bb-fill', 'bb-shield',
      'screen-menu', 'screen-maps', 'screen-skills', 'screen-settings', 'map-list', 'maps-title',
-     'skill-tabs', 'skill-tree', 'skill-detail', 'settings-body', 'overlay-pause', 'overlay-result',
+     'shuffle-btn', 'reroll-btn', 'skill-tabs', 'skill-tree', 'skill-detail', 'settings-body', 'overlay-pause', 'overlay-result',
      'result-title', 'result-stats', 'pause-stats', 'menu-stats', 'rotate-hint', 'gold-chip']
       .forEach(function (id) { el[id] = $(id); });
 
     buildBuildBar();
     bindGlobalNav();
+    bindShuffleControls();
     bindCanvas();
     bindHudButtons();
     bindDialogs();
@@ -716,7 +717,8 @@
 
   function runStatsHTML(game) {
     return [
-      ['Sector', game.map.name],
+      ['Sector', game.map.name + (game.map.generated ? ' · ' + game.map.genName : '')],
+      ['Layout', game.map.generated ? '#' + game.map.seedLabel : 'Authored'],
       ['Mode', game.endless ? 'Endless' : 'Campaign'],
       ['Wave', game.endless ? game.wave : game.wave + ' / ' + game.totalWaves],
       ['Score', U.comma(game.score)],
@@ -730,7 +732,8 @@
     $('resume-btn').addEventListener('click', function () { UI.resume(); });
     $('restart-btn').addEventListener('click', function () {
       el['overlay-pause'].classList.add('hidden');
-      UI.startRun(UI.game.map.id, UI.game.mode);
+      const m = UI.game.map;
+      UI.startRun(m.id, UI.game.mode, m.generated ? m : null);
     });
     $('quit-btn').addEventListener('click', function () {
       el['overlay-pause'].classList.add('hidden');
@@ -739,7 +742,8 @@
     });
     $('result-again').addEventListener('click', function () {
       el['overlay-result'].classList.add('hidden');
-      UI.startRun(UI.game.map.id, UI.game.mode);
+      const m = UI.game.map;
+      UI.startRun(m.id, UI.game.mode, m.generated ? m : null);
     });
     $('result-menu').addEventListener('click', function () {
       el['overlay-result'].classList.add('hidden');
@@ -751,7 +755,7 @@
   UI.showResult = function (res) {
     el['result-title'].textContent = res.won ? 'Sector Secured' : 'Core Destroyed';
     const rows = [
-      ['Sector', UI.game.map.name],
+      ['Sector', UI.game.map.name + (UI.game.map.generated ? ' · ' + UI.game.map.genName : '')],
       ['Waves survived', res.wave],
       ['Score', U.comma(res.score)],
       ['Kills', U.comma(res.kills)],
@@ -768,6 +772,21 @@
   /* ================================================================
      screens
      ================================================================ */
+  function bindShuffleControls() {
+    el['shuffle-btn'].addEventListener('click', function () {
+      S.data.settings.shuffle = !S.data.settings.shuffle;
+      S.save();
+      TD.Audio.play('ui');
+      buildMapList(UI.mapsMode || 'campaign');
+      UI.toast(S.data.settings.shuffle ? 'Generating fresh layouts' : 'Using the authored layouts');
+    });
+    el['reroll-btn'].addEventListener('click', function () {
+      UI.rollCount++;
+      TD.Audio.play('ui');
+      buildMapList(UI.mapsMode || 'campaign');
+    });
+  }
+
   function bindGlobalNav() {
     document.addEventListener('click', function (ev) {
       const b = ev.target.closest && ev.target.closest('[data-nav]');
@@ -812,9 +831,35 @@
       'Total kills: ' + U.comma(d.stats.kills) + ' · Runs: ' + d.stats.runs;
   }
 
+  // Bumped by the Reroll button; mixed into each sector's seed so one tap
+  // reshuffles every preview at once.
+  UI.rollCount = 0;
+
+  function layoutSeedFor(map, mode) {
+    let h = 0;
+    const str = map.id + '|' + mode;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return (h ^ (UI.rollCount * 2654435761)) >>> 0;
+  }
+
+  /** The layout a card is offering: a generated one, or the authored sector. */
+  function layoutFor(map, mode) {
+    if (!S.data.settings.shuffle) return map;
+    const gen = TD.MapGen.generate(layoutSeedFor(map, mode), map);
+    if (!gen) return map;                       // generator gave up: use the original
+    TD.prepareMap(gen);
+    return gen;
+  }
+
   function buildMapList(mode) {
+    UI.mapsMode = mode;
     el['maps-title'].textContent = mode === 'endless' ? 'Endless — Select Sector' : 'Campaign — Select Sector';
     $('rp-badge2').textContent = S.data.rp;
+    const shuffle = !!S.data.settings.shuffle;
+    el['shuffle-btn'].textContent = '🎲 Shuffle: ' + (shuffle ? 'ON' : 'OFF');
+    el['shuffle-btn'].classList.toggle('on', shuffle);
+    el['reroll-btn'].classList.toggle('hidden', !shuffle);
+
     const list = el['map-list'];
     list.innerHTML = '';
     TD.MAPS.forEach(function (map, i) {
@@ -823,30 +868,36 @@
         : S.mapUnlocked(i);
       const prog = S.data.progress[map.id] || {};
       const endless = S.data.endless[map.id] || {};
+      const layout = unlocked ? layoutFor(map, mode) : map;
       const card = document.createElement('button');
       card.className = 'map-card' + (unlocked ? '' : ' locked');
       card.innerHTML =
         '<canvas width="520" height="312"></canvas>' +
-        '<div class="mc-body"><h3>' + (unlocked ? map.name : '🔒 ' + map.name) + '</h3><p>' + map.desc + '</p></div>' +
+        '<div class="mc-body"><h3>' + (unlocked ? map.name : '🔒 ' + map.name) + '</h3>' +
+        '<p>' + (layout.generated ? layout.desc : map.desc) + '</p></div>' +
         '<div class="mc-foot">' +
           '<span class="tag' + (map.difficulty > 1.2 ? ' hard' : '') + '">Threat ×' + map.difficulty.toFixed(2) + '</span>' +
           '<span class="tag">' + (mode === 'endless' ? '∞ waves' : map.waves + ' waves') + '</span>' +
+          (layout.generated ? '<span class="tag"><span class="mc-seed">#' + layout.seedLabel + '</span></span>' : '') +
           (prog.cleared ? '<span class="tag best">✓ Cleared</span>' : '') +
           (mode === 'endless' && endless.bestWave ? '<span class="tag best">Best wave ' + endless.bestWave + '</span>' : '') +
         '</div>';
-      TD.Render.drawThumb(card.querySelector('canvas'), map);
+      TD.Render.drawThumb(card.querySelector('canvas'), layout);
       card.addEventListener('click', function () {
         if (!unlocked) { UI.toast('Clear the previous sector first'); TD.Audio.play('error'); return; }
-        UI.startRun(map.id, mode);
+        UI.startRun(map.id, mode, layout.generated ? layout : null);
       });
       list.appendChild(card);
     });
   }
 
-  UI.startRun = function (mapId, mode) {
+  UI.startRun = function (mapId, mode, layout) {
     const game = UI.game;
     if (UI.desiredCols) TD.setFieldCols(UI.desiredCols);
-    game.start(mapId, mode);
+    // The field may have been widened since the preview was drawn, so rebuild
+    // the generated layout's geometry before the run reads it.
+    if (layout && layout.generated) TD.prepareMap(layout);
+    game.start(layout || mapId, mode);
     UI.layout();
     UI.buildId = null;
     UI.inspect = null;
@@ -861,6 +912,7 @@
     UI.showScreen('game');
     UI.syncHud(true);
     UI.banner(mode === 'endless' ? 'ENDLESS' : map_name(mapId));
+    if (game.map.generated) UI.toast('Layout #' + game.map.seedLabel + ' — ' + game.map.genName);
     TD.Audio.unlock();
   };
 
@@ -939,6 +991,7 @@
       ['sfx', 'Sound effects', 'Short synthesised blips — no downloads.'],
       ['damageNumbers', 'Damage numbers', 'Show floating damage over enemies.'],
       ['autoStart', 'Auto-start waves', 'Waves launch when the prep timer runs out.'],
+      ['shuffle', 'Generated layouts', 'Roll a fresh road for every sector. Turn off to play the authored maps.'],
       ['showRanges', 'Show tower range', 'Draw the range circle for the selected tower.']
     ];
     body.innerHTML = rows.map(function (r) {

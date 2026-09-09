@@ -172,5 +172,6 @@
   TD.BASE_COLS = BASE_COLS;
   TD.MAX_COLS = BASE_COLS + EXTRA_MAX;
   TD.setFieldCols = setFieldCols;
+  TD.prepareMap = function (map) { map._ready = false; return prepare(map); };
   TD.mapById = function (id) { return MAPS.filter(function (m) { return m.id === id; })[0] || MAPS[0]; };
 })(window.TD);

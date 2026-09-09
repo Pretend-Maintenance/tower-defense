@@ -14,7 +14,7 @@
       progress: {},   // mapId -> {cleared, bestWave, bestScore}
       endless: {},    // mapId -> {bestWave, bestScore}
       stats: { runs: 0, kills: 0, waves: 0, bestScore: 0 },
-      settings: { sfx: true, damageNumbers: true, autoStart: true, showRanges: true, leftHanded: false }
+      settings: { sfx: true, damageNumbers: true, autoStart: true, showRanges: true, shuffle: true }
     };
   }
 

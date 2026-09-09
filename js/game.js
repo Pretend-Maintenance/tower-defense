@@ -29,9 +29,10 @@
   /* ------------------------------------------------------------------ */
   /* run lifecycle                                                      */
   /* ------------------------------------------------------------------ */
-  Game.start = function (mapId, mode) {
+  Game.start = function (map, mode) {
     const S = TD.Save;
-    this.map = TD.mapById(mapId);
+    // Accepts a sector id or a prepared map object (generated layouts).
+    this.map = typeof map === 'string' ? TD.mapById(map) : map;
     this.mode = mode;
     this.endless = mode === 'endless';
     this.bonuses = S.bonuses();
@@ -251,7 +252,9 @@
   Game.mapSeed = function () {
     let h = 0;
     for (let i = 0; i < this.map.id.length; i++) h = (h * 31 + this.map.id.charCodeAt(i)) >>> 0;
-    return h + (this.endless ? 5000 : 0);
+    // A generated layout also varies its wave composition, so a reroll is a
+    // different fight and not just a different road.
+    return (h + (this.map.seed || 0) + (this.endless ? 5000 : 0)) >>> 0;
   };
 
   Game.updateWaves = function (dt) {

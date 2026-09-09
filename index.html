@@ -82,7 +82,11 @@
     <div class="screen-head">
       <button class="back-btn" data-nav="menu">‹ Back</button>
       <h2 id="maps-title">Select Sector</h2>
-      <div class="head-right"><span class="rp-pill">◆ <span id="rp-badge2">0</span> RP</span></div>
+      <div class="head-right">
+        <button class="head-btn toggle-btn" id="shuffle-btn">🎲 Shuffle: ON</button>
+        <button class="head-btn" id="reroll-btn">↻ Reroll</button>
+        <span class="rp-pill">◆ <span id="rp-badge2">0</span> RP</span>
+      </div>
     </div>
     <div id="map-list" class="card-grid"></div>
   </div>
@@ -145,6 +149,7 @@
 <script src="js/audio.js"></script>
 <script src="js/config.js"></script>
 <script src="js/maps.js"></script>
+<script src="js/mapgen.js"></script>
 <script src="js/save.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/game.js"></script>
